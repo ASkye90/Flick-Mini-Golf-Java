@@ -33,6 +33,7 @@ public class FlickGolf extends JPanel {
 		frame.pack();		
 		frame.setLocationRelativeTo(null);
 		frame.setVisible(true);
+		frame.setDefaultCloseOperation(WindowConstants.EXIT_ON_CLOSE);
 	}
 
 }
