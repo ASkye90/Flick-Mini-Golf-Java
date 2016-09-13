@@ -4,6 +4,7 @@ import java.awt.*;
  * Ball handles storage and drawing for the player's ball object.
  */
 public class Ball {
+	
 	private Point center;
 	private int radius;
 	
@@ -13,7 +14,11 @@ public class Ball {
 	public Ball(Point c, int rad) {
 		center = c;
 		radius = rad;
-		velocity = new Point(0,0);
+		velocity = new Point(7,-2);
+	}
+	
+	public void move(int dX, int dY) {
+		center.translate(dX, dY);
 	}
 	
 	public Point getCenter() {
