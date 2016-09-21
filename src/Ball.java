@@ -1,52 +1,46 @@
 import java.awt.*;
+import java.awt.geom.Ellipse2D;
+import java.awt.geom.Point2D;
+import java.awt.geom.Rectangle2D;
 
 /*
  * Ball handles storage and drawing for the player's ball object.
  */
 public class Ball {
 	
-	private Point center;
-	private int radius;
+	private Ellipse2D.Double circle;
 	
 	//Velocity stored as change in x and y position per instance.
-	private Point velocity;
+	private Point2D.Double velocity;
 	
-	public Ball(Point c, int rad) {
-		center = c;
-		radius = rad;
-		velocity = new Point(7,-2);
+	public Ball(Point center, int radius) {
+		circle = new Ellipse2D.Double(center.getX()-radius, center.getY()-radius, radius*2, radius*2);
+		velocity = new Point2D.Double(.7,0.3);
 	}
 	
-	public void move(int dX, int dY) {
-		center.translate(dX, dY);
+	public void move(double dX, double dY) {
+		circle.setFrame(circle.getX()+dX, circle.getY()+dY, circle.getWidth(), circle.getHeight());
 	}
 	
-	public Point getCenter() {
-		return center;
-	}
-
-	public void setCenter(Point center) {
-		this.center = center;
+	public Ellipse2D.Double getCircle() {
+		return circle;
 	}
 
 	public int getRadius() {
-		return radius;
+		return (int)circle.getHeight();
 	}
 
-	public void setRadius(int radius) {
-		this.radius = radius;
-	}
-
-	public Point getVelocity() {
+	public Point2D.Double getVelocity() {
 		return velocity;
 	}
 
-	public void setVelocity(Point velocity) {
+	public void setVelocity(Point2D.Double velocity) {
 		this.velocity = velocity;
 	}
 	
 	public void draw(Graphics g) {
 		Graphics2D g2d = (Graphics2D) g;
-		g2d.drawOval(center.x-radius, center.y-radius, (radius*2)-1, (radius*2)-1);
+		g2d.draw(circle);
+		g2d.draw(new Rectangle2D.Double(circle.getX(),circle.getY(),circle.getWidth(),circle.getHeight()));
 	}
 }

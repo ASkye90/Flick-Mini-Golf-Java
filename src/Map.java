@@ -1,9 +1,9 @@
 import java.awt.*;
+import java.awt.geom.Ellipse2D;
 import java.awt.geom.Line2D;
 import java.awt.geom.Point2D;
+import java.awt.geom.Rectangle2D;
 import java.util.ArrayList;
-
-import javax.sound.sampled.Line;
 /*
  * Map provides storage and drawing for the current map.
  * 
@@ -23,6 +23,7 @@ public class Map {
 	 * 		10 = filled
 	 */
 	private int[] map;
+	private Shape[] tiles;
 	
 	//Starting position for ball.
 	private Point start;
@@ -32,6 +33,7 @@ public class Map {
 		int aHeight = height/tileSize;
 		int arraySize = aWidth*aHeight;
 		map = new int[arraySize];
+		tiles = new Shape[arraySize];
 		
 		int pos, val;
 		for (int i=0; i<aWidth; i++) {
@@ -43,17 +45,19 @@ public class Map {
 				} else if (i <= 3) {
 					val = 0;
 				} else {
-					if (Math.random() < .1) {
+					if (Math.random() < .4) {
 						val = 10;
 					}
 				}
+				tiles[pos] = new Rectangle2D.Double(i*tileSize, j*tileSize, tileSize, tileSize);
 				map[pos]=val;
 			}
 		}
 		
-		//Force (1,30) to be starting position.
+		//Force mid-way left hand side starting position.
 		start = new Point(1,aHeight/2);
 		map[start.x+start.y*aWidth] = 1;
+		tiles[start.x+start.y*aWidth] = new Rectangle2D.Double(start.x*tileSize,start.y*tileSize,tileSize,tileSize);
 		
 	}
 	
@@ -66,9 +70,9 @@ public class Map {
 			for (int j=0; j<aHeight; j++) {
 				pos = i+j*aWidth;
 				if (map[pos] == 0) {
-					//g2d.drawRect(i*tileSize, j*tileSize, tileSize, tileSize);
+					g2d.draw(tiles[pos]);
 				} else if (map[pos] == 10) {
-					g2d.fillRect(i*tileSize, j*tileSize, tileSize, tileSize);
+					g2d.fill(tiles[pos]);
 				}
 			}
 		}
@@ -82,16 +86,16 @@ public class Map {
 	}
 	
 	/*
-	 * Check ball for intersections with map after delta .
+	 * Checks balls for intersections with map elements after delta time step.
 	 * 
 	 * @param	ball	Ball to check.
 	 * @param	delta	what fraction of a fixed time step to calculate.
 	 * 
-	 * @return	All lines that intersect with ball.
+	 * @return	All lines that will intersect with ball.
 	 * 
-	 * ASSUMPTION: delta <= 1.0, ball smaller than tile size, ball cannot completely pass a tile in one time step.
+	 * ASSUMPTION: delta <= 1.0, ball smaller than tile size, ball cannot completely pass a tile in one delta time step.
 	 */
-	public ArrayList<Line2D> getCollisionLines(Ball ball, double delta) {
+	public ArrayList<Line2D> getPossibleLines(Ball ball, double delta) {
 		ArrayList<Line2D> lines = new ArrayList<Line2D>();
 		
 		/* BROAD SEARCH 
@@ -99,69 +103,77 @@ public class Map {
 		 */
 		
 		//Create AABB for resultant ball after movement represented by top-left and bottom-right points.
-		Point c = ball.getCenter();
-		Point vel = ball.getVelocity();
-		Point2D newC = new Point2D.Double((c.x + vel.x * delta),(c.y + vel.y *delta));
+		Ellipse2D c = ball.getCircle();
+		Point2D vel = ball.getVelocity();
+		Point2D newCenter = new Point2D.Double((c.getCenterX() + vel.getX() * delta),(c.getCenterY() + vel.getY() * delta));
 		int r = ball.getRadius();
-		Point2D min = new Point2D.Double(newC.getX() - r, newC.getY() - r);
-		Point2D max = new Point2D.Double(newC.getX() + r, newC.getY() + r);
 		
-		int aWidth = width/tileSize;
+		int centerTileX = (int)(newCenter.getX()/tileSize);
+		int centerTileY = (int)(newCenter.getY()/tileSize);
 		
-		//Check only 4 tiles (max) based on ball size assumption.
-		int tile, tileX, tileY;
-		for (int i=0; i<2; i++) {
-			for (int j=0; j<2; j++) {
-				if (i==0) {
-					tileX = (int) Math.floor(min.getX()/tileSize);
-				} else {
-					tileX = (int) Math.floor(max.getX()/tileSize);
-				}
-				if (j == 0) {
-					tileY = (int) Math.floor(min.getY()/tileSize);
-				} else {
-					tileY = (int) Math.floor(max.getY()/tileSize);
-				}
-				tile = tileX + tileY * aWidth;
+		int gridWidth = width/tileSize;
+		int gridHeight = height/tileSize;
+		int tilePos, tileX, tileY;
+		for (int i=-1; i<=1; i++) {
+			for (int j=-1; j<=1; j++) {
+				tileX = centerTileX + i;
+				tileY = centerTileY + j;
 				
-				if (map[tile] >= IS_SOLID) {
-					
-					/*
-					 * NARROW SEARCH
-					 * Check sphere against all lines in non-empty tiles.
-					 */
-					if (map[tile] == 10) {
-						Line2D line;
-						boolean check = false;
-						double top = tileY * tileSize;
-						double bottom = tileY * (tileSize+1);
-						double left = tileX * tileSize;
-						double right = tileX * (tileSize+1);
-						if (newC.getX() < left) {
-							line = new Line2D.Double(new Point2D.Double(left,top),new Point2D.Double(left,bottom));
-							if (checkLine(line,newC,r)) {
-								lines.add(line);
+				//Add check for redundant lines here if necessary
+				if(tileX >= 0 && tileY >= 0 && tileX < gridWidth && tileY < gridHeight) {
+					tilePos = tileX + tileY * gridWidth;
+					if (map[tilePos] >= IS_SOLID) {
+						
+						/*
+						 * NARROW SEARCH
+						 * Check sphere against all lines in non-empty tiles.
+						 */
+						if (map[tilePos] == 10) {
+							Line2D line;
+							Rectangle2D tile = (Rectangle2D) tiles[tilePos];
+							double top = tile.getY();
+							double bottom = tile.getMaxY();
+							double left = tile.getX();
+							double right = tile.getMaxX();
+							// If traveling in upwards direction and the highest point on
+							//  the AABB is above the tile's bottom line, check bottom line.
+							if(vel.getY() < 0 && newCenter.getY() - r <= bottom) {
+								line = new Line2D.Double(new Point2D.Double(left,bottom),new Point2D.Double(right,bottom));
+								if (checkLine(line,newCenter,r)) {
+									lines.add(line);
+								}
 							}
-						} else if (newC.getX() > right) {
-							line = new Line2D.Double(new Point2D.Double(right,top),new Point2D.Double(right,bottom));
-							if (checkLine(line,newC,r)) {
-								lines.add(line);
+							
+							// If traveling in downwards direction and the lowest point on
+							//  the AABB is below the tile's top line, check top line.
+							if(vel.getY() > 0 && newCenter.getY() + r >= top) {
+								line = new Line2D.Double(new Point2D.Double(left,top),new Point2D.Double(right,top));
+								if (checkLine(line,newCenter,r)) {
+									lines.add(line);
+								}
 							}
-						}
-						if (newC.getY() < top) {
-							line = new Line2D.Double(new Point2D.Double(left,top),new Point2D.Double(right,top));
-							if (checkLine(line,newC,r)) {
-								lines.add(line);
+							
+							// If traveling in the rightwards direction and the far right point on
+							//  the AABB is right of the tile's left-most line, check left line.
+							if (vel.getX() > 0 && newCenter.getX() + r >= left) {
+								line = new Line2D.Double(new Point2D.Double(left,top),new Point2D.Double(left,bottom));
+								if (checkLine(line,newCenter,r)) {
+									lines.add(line);
+								}
 							}
-						} else if (newC.getY() > bottom) {
-							line = new Line2D.Double(new Point2D.Double(left,bottom),new Point2D.Double(right,bottom));
-							if (checkLine(line,newC,r)) {
-								lines.add(line);
+							
+							// If traveling in the leftwards direction and the far right point on
+							//  the AABB is left of the tile's right-most line, check right line.
+							if (vel.getX() < 0 && newCenter.getX() - r <= right) {
+								line = new Line2D.Double(new Point2D.Double(right,top),new Point2D.Double(right,bottom));
+								if (checkLine(line,newCenter,r)) {
+									lines.add(line);
+								}
 							}
+							
 						}
 					}
-					
-				}	
+				}
 			}
 		}
 		
@@ -170,13 +182,44 @@ public class Map {
 	}
 	
 	/*
-	 * Helper method for getCollisionLines().
 	 * 
 	 * Checks if a line intersects with given circle.
 	 * 
 	 * @return	true if there is an intersection.
 	 */
-	public boolean checkLine(Line2D line, Point2D center, int radius) {
-		return true;
+	private boolean checkLine(Line2D line, Point2D center, int radius) {
+		Point2D closest = closestPointOnLine(line,center);
+		double dist = Math.sqrt(Math.pow(closest.getX()-center.getX(), 2) + Math.pow(closest.getY() - center.getY(), 2));
+		if (dist <= radius) {
+			return true;
+		}
+		return false;
+	}
+	
+	/*
+	 * Helper method for checkLine method.
+	 * 
+	 * @return closest point on line to any given point.
+	 */
+	private Point2D closestPointOnLine(Line2D line, Point2D point){
+		double lx1 = line.getX1();
+		double lx2 = line.getX2();
+		double ly1 = line.getY1();
+		double ly2 = line.getY2();
+		double A1 = ly2 - ly1; 
+		double B1 = lx1 - lx2; 
+		double C1 = (ly2 - ly1)*lx1 + (lx1 - lx2)*ly1; 
+		double C2 = -B1*point.getX() + A1*point.getY(); 
+		double det = A1*A1 - -B1*B1; 
+		double cx = 0; 
+		double cy = 0; 
+		if(det != 0){ 
+            cx = (A1*C1 - B1*C2)/det; 
+            cy = (A1*C2 - -B1*C1)/det; 
+		} else { 
+            cx = point.getX(); 
+            cy = point.getY(); 
+		} 
+		return new Point2D.Double(cx, cy); 
 	}
 }
