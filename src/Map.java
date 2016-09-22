@@ -73,7 +73,7 @@ public class Map {
 					g2d.draw(tiles[pos]);
 				} else if (map[pos] == 10) {
 					g2d.fill(tiles[pos]);
-				}
+				} 
 			}
 		}
 	}
@@ -182,6 +182,7 @@ public class Map {
 	}
 	
 	/*
+	 * Helper method for getPossibleLines method.
 	 * 
 	 * Checks if a line intersects with given circle.
 	 * 
@@ -190,7 +191,7 @@ public class Map {
 	private boolean checkLine(Line2D line, Point2D center, int radius) {
 		Point2D closest = closestPointOnLine(line,center);
 		double dist = Math.sqrt(Math.pow(closest.getX()-center.getX(), 2) + Math.pow(closest.getY() - center.getY(), 2));
-		if (dist <= radius) {
+		if (dist < radius) {
 			return true;
 		}
 		return false;
@@ -202,24 +203,15 @@ public class Map {
 	 * @return closest point on line to any given point.
 	 */
 	private Point2D closestPointOnLine(Line2D line, Point2D point){
-		double lx1 = line.getX1();
-		double lx2 = line.getX2();
-		double ly1 = line.getY1();
-		double ly2 = line.getY2();
-		double A1 = ly2 - ly1; 
-		double B1 = lx1 - lx2; 
-		double C1 = (ly2 - ly1)*lx1 + (lx1 - lx2)*ly1; 
-		double C2 = -B1*point.getX() + A1*point.getY(); 
-		double det = A1*A1 - -B1*B1; 
-		double cx = 0; 
-		double cy = 0; 
-		if(det != 0){ 
-            cx = (A1*C1 - B1*C2)/det; 
-            cy = (A1*C2 - -B1*C1)/det; 
-		} else { 
-            cx = point.getX(); 
-            cy = point.getY(); 
-		} 
-		return new Point2D.Double(cx, cy); 
+		double dX1 = point.getX() - line.getX1();
+		double dY1 = point.getY() - line.getY1();
+		double dX2 = point.getX() - line.getX2();
+		double dY2 = point.getY() - line.getY2();
+		
+		double sqMag = dX1*dX1 + dY1 * dY1;
+		double dotProd = dX1*dX2 + dY1 * dY2;
+		double nrmDist = dotProd / sqMag;
+		
+		return new Point2D.Double(point.getX() + dX1*nrmDist, point.getY() + dY1*nrmDist);
 	}
 }

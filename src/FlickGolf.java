@@ -112,13 +112,13 @@ public class FlickGolf extends JPanel implements MouseListener,MouseMotionListen
 			} else {
 				//Collision handling
 				double dist;
-				double smallestDist = 0;
+				double smallestDist = -1;
 				Line2D firstLine = collisions.get(0);
 				for (Line2D line : collisions) {
 					Point2D intersect = getPointOfIntersection(line);
 					Point2D ballStart = new Point2D.Double(ball.getCircle().getCenterX(),ball.getCircle().getCenterY());
 					dist = Math.sqrt(Math.pow(ballStart.getX()-intersect.getX(), 2) + Math.pow(ballStart.getY()-intersect.getY(),2));
-					if (dist < smallestDist || smallestDist == 0) {
+					if (dist < smallestDist || smallestDist == -1) {
 						smallestDist = dist;
 						firstLine = line;
 					}
@@ -127,7 +127,7 @@ public class FlickGolf extends JPanel implements MouseListener,MouseMotionListen
 				//TEMPORARY CODE
 				Point2D vel = ball.getVelocity();
 				ball.move(vel.getX()*delta, vel.getY()*delta);
-				_TEMPORARY.add(firstLine);
+				_TEMPORARY.addAll(collisions);
 				delta = 0;
 				//TEMPORARY CODE
 			}

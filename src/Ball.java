@@ -27,7 +27,7 @@ public class Ball {
 	}
 
 	public int getRadius() {
-		return (int)circle.getHeight();
+		return (int)circle.getHeight()/2;
 	}
 
 	public Point2D.Double getVelocity() {
