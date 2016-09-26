@@ -190,7 +190,7 @@ public class Map {
 	 */
 	private boolean checkLine(Line2D line, Point2D center, int radius) {
 		Point2D closest = closestPointOnLine(line,center);
-		double dist = Math.sqrt(Math.pow(closest.getX()-center.getX(), 2) + Math.pow(closest.getY() - center.getY(), 2));
+		double dist = closest.distance(center);
 		if (dist < radius) {
 			return true;
 		}

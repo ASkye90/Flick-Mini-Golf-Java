@@ -11,7 +11,7 @@ public class Ball {
 	private Ellipse2D.Double circle;
 	
 	//Velocity stored as change in x and y position per instance.
-	private Point2D.Double velocity;
+	private Point2D velocity;
 	
 	public Ball(Point center, int radius) {
 		circle = new Ellipse2D.Double(center.getX()-radius, center.getY()-radius, radius*2, radius*2);
@@ -30,17 +30,17 @@ public class Ball {
 		return (int)circle.getHeight()/2;
 	}
 
-	public Point2D.Double getVelocity() {
+	public Point2D getVelocity() {
 		return velocity;
 	}
 
-	public void setVelocity(Point2D.Double velocity) {
+	public void setVelocity(Point2D velocity) {
 		this.velocity = velocity;
 	}
 	
 	public void draw(Graphics g) {
 		Graphics2D g2d = (Graphics2D) g;
 		g2d.draw(circle);
-		g2d.draw(new Rectangle2D.Double(circle.getX(),circle.getY(),circle.getWidth(),circle.getHeight()));
+		//g2d.draw(new Rectangle2D.Double(circle.getX(),circle.getY(),circle.getWidth(),circle.getHeight()));
 	}
 }
