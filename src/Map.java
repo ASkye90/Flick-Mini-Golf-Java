@@ -138,6 +138,7 @@ public class Map {
 							// If traveling in upwards direction and the highest point on
 							//  the AABB is above the tile's bottom line, check bottom line.
 							if(vel.getY() < 0 && newCenter.getY() - r <= bottom) {
+								System.out.println("bot");
 								line = new Line2D.Double(new Point2D.Double(left,bottom),new Point2D.Double(right,bottom));
 								if (checkLine(line,newCenter,r)) {
 									lines.add(line);
@@ -156,6 +157,7 @@ public class Map {
 							// If traveling in the rightwards direction and the far right point on
 							//  the AABB is right of the tile's left-most line, check left line.
 							if (vel.getX() > 0 && newCenter.getX() + r >= left) {
+								System.out.println("left");
 								line = new Line2D.Double(new Point2D.Double(left,top),new Point2D.Double(left,bottom));
 								if (checkLine(line,newCenter,r)) {
 									lines.add(line);
@@ -190,8 +192,11 @@ public class Map {
 	 */
 	private boolean checkLine(Line2D line, Point2D center, int radius) {
 		Point2D closest = closestPointOnLine(line,center);
+		System.out.println("Line: ("+ line.getX1() + "," + line.getY1() + "), ("+line.getX2()+","+line.getY2()+")");
+		System.out.println(center + " : " + closest);
 		double dist = closest.distance(center);
-		if (dist < radius) {
+		System.out.println(line + " : " + dist);
+		if (dist <= radius) {
 			return true;
 		}
 		return false;
@@ -203,15 +208,28 @@ public class Map {
 	 * @return closest point on line to any given point.
 	 */
 	private Point2D closestPointOnLine(Line2D line, Point2D point){
-		double dX1 = point.getX() - line.getX1();
-		double dY1 = point.getY() - line.getY1();
-		double dX2 = point.getX() - line.getX2();
-		double dY2 = point.getY() - line.getY2();
+		double[] AP = new double[2];
+		double[] AB = new double[2];
+		
+		AP[0] = point.getX() - line.getX1();
+		AP[1] = point.getY() - line.getY1();
+		AB[0] = line.getX2() - line.getX1();
+		AB[1] = line.getY2() - line.getY1();
+		
+		double t = ((AP[0]*AB[0])+(AP[1]*AB[1]))/((AB[0]*AB[0]) + (AB[1]*AB[1]));
+		
+		if (t < 0) t = 0;
+		else if (t > 1) t = 1;
+		return new Point2D.Double(line.getX1()+AB[0]*t,line.getY1()+AB[1]*t);
+		/*double dX1 = line.getX1() - point.getX();
+		double dY1 = line.getY1() - point.getY();
+		double dX2 = line.getX2() - point.getX();
+		double dY2 = line.getY2() - point.getY();
 		
 		double sqMag = dX1*dX1 + dY1 * dY1;
 		double dotProd = dX1*dX2 + dY1 * dY2;
 		double nrmDist = dotProd / sqMag;
 		
-		return new Point2D.Double(point.getX() + dX1*nrmDist, point.getY() + dY1*nrmDist);
+		return new Point2D.Double(point.getX() + dX1*nrmDist, point.getY() + dY1*nrmDist);*/
 	}
 }
