@@ -15,7 +15,7 @@ public class Ball {
 	
 	public Ball(Point center, int radius) {
 		circle = new Ellipse2D.Double(center.getX()-radius, center.getY()-radius, radius*2, radius*2);
-		velocity = new Point2D.Double(.7,0.3);
+		velocity = new Point2D.Double(0.5,.5);
 	}
 	
 	public void move(double dX, double dY) {

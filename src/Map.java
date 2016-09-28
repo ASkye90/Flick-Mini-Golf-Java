@@ -10,8 +10,8 @@ import java.util.ArrayList;
  * Handles the collision detection for the game. 
  */
 public class Map {
-	public static int width = 960;
-	public static int height = 640;
+	public static int WIDTH = 960;
+	public static int HEIGHT = 640;
 	public static int tileSize = 20;
 	
 	// All integers at or above IS_SOLID contain collidable parts.
@@ -29,8 +29,8 @@ public class Map {
 	private Point start;
 	
 	public Map() {
-		int aWidth = width/tileSize;
-		int aHeight = height/tileSize;
+		int aWidth = WIDTH/tileSize;
+		int aHeight = HEIGHT/tileSize;
 		int arraySize = aWidth*aHeight;
 		map = new int[arraySize];
 		tiles = new Shape[arraySize];
@@ -45,7 +45,7 @@ public class Map {
 				} else if (i <= 3) {
 					val = 0;
 				} else {
-					if (Math.random() < .4) {
+					if (Math.random() < .1) {
 						val = 10;
 					}
 				}
@@ -63,8 +63,9 @@ public class Map {
 	
 	public void draw(Graphics g) {
 		Graphics2D g2d = (Graphics2D) g;
-		int aWidth = width/tileSize;
-		int aHeight = height/tileSize;
+		g.setColor(Color.BLACK);
+		int aWidth = WIDTH/tileSize;
+		int aHeight = HEIGHT/tileSize;
 		int pos;
 		for (int i=0; i<aWidth; i++) {
 			for (int j=0; j<aHeight; j++) {
@@ -111,8 +112,8 @@ public class Map {
 		int centerTileX = (int)(newCenter.getX()/tileSize);
 		int centerTileY = (int)(newCenter.getY()/tileSize);
 		
-		int gridWidth = width/tileSize;
-		int gridHeight = height/tileSize;
+		int gridWidth = WIDTH/tileSize;
+		int gridHeight = HEIGHT/tileSize;
 		int tilePos, tileX, tileY;
 		for (int i=-1; i<=1; i++) {
 			for (int j=-1; j<=1; j++) {
@@ -138,7 +139,6 @@ public class Map {
 							// If traveling in upwards direction and the highest point on
 							//  the AABB is above the tile's bottom line, check bottom line.
 							if(vel.getY() < 0 && newCenter.getY() - r <= bottom) {
-								System.out.println("bot");
 								line = new Line2D.Double(new Point2D.Double(left,bottom),new Point2D.Double(right,bottom));
 								if (checkLine(line,newCenter,r)) {
 									lines.add(line);
@@ -157,7 +157,6 @@ public class Map {
 							// If traveling in the rightwards direction and the far right point on
 							//  the AABB is right of the tile's left-most line, check left line.
 							if (vel.getX() > 0 && newCenter.getX() + r >= left) {
-								System.out.println("left");
 								line = new Line2D.Double(new Point2D.Double(left,top),new Point2D.Double(left,bottom));
 								if (checkLine(line,newCenter,r)) {
 									lines.add(line);
@@ -192,10 +191,7 @@ public class Map {
 	 */
 	private boolean checkLine(Line2D line, Point2D center, int radius) {
 		Point2D closest = closestPointOnLine(line,center);
-		System.out.println("Line: ("+ line.getX1() + "," + line.getY1() + "), ("+line.getX2()+","+line.getY2()+")");
-		System.out.println(center + " : " + closest);
 		double dist = closest.distance(center);
-		System.out.println(line + " : " + dist);
 		if (dist <= radius) {
 			return true;
 		}
@@ -221,15 +217,5 @@ public class Map {
 		if (t < 0) t = 0;
 		else if (t > 1) t = 1;
 		return new Point2D.Double(line.getX1()+AB[0]*t,line.getY1()+AB[1]*t);
-		/*double dX1 = line.getX1() - point.getX();
-		double dY1 = line.getY1() - point.getY();
-		double dX2 = line.getX2() - point.getX();
-		double dY2 = line.getY2() - point.getY();
-		
-		double sqMag = dX1*dX1 + dY1 * dY1;
-		double dotProd = dX1*dX2 + dY1 * dY2;
-		double nrmDist = dotProd / sqMag;
-		
-		return new Point2D.Double(point.getX() + dX1*nrmDist, point.getY() + dY1*nrmDist);*/
 	}
 }
