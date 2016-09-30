@@ -12,7 +12,7 @@ import java.util.ArrayList;
 public class Map {
 	public static int WIDTH = 960;
 	public static int HEIGHT = 640;
-	public static int tileSize = 20;
+	public static int TILESIZE = 20;
 	
 	// All integers at or above IS_SOLID contain collidable parts.
 	private static int IS_SOLID = 10;
@@ -20,8 +20,18 @@ public class Map {
 	 * Current assigned values:
 	 * 		0 = empty
 	 * 		1 = empty + starting position
-	 * 		10 = filled
+	 * 		10 = square
+	 * 		30 = triangle (top-left)
+	 * 		35 = triangle (top-right)
+	 *		40 = triangle (bottom-left)
+	 *		45 = triangle (bottom-right) 		
 	 */
+	private static int SQUARE = 10;
+	private static int TRIANGLE_TL = 30;
+	private static int TRIANGLE_TR = 35;
+	private static int TRIANGLE_BL = 40;
+	private static int TRIANGLE_BR = 45;
+	
 	private int[] map;
 	private Shape[] tiles;
 	
@@ -29,8 +39,8 @@ public class Map {
 	private Point start;
 	
 	public Map() {
-		int aWidth = WIDTH/tileSize;
-		int aHeight = HEIGHT/tileSize;
+		int aWidth = WIDTH/TILESIZE;
+		int aHeight = HEIGHT/TILESIZE;
 		int arraySize = aWidth*aHeight;
 		map = new int[arraySize];
 		tiles = new Shape[arraySize];
@@ -40,16 +50,46 @@ public class Map {
 			for (int j=0; j<aHeight; j++) {
 				pos = i+j*aWidth;
 				val = 0;
+				tiles[pos] = new Rectangle2D.Double(i*TILESIZE, j*TILESIZE, TILESIZE, TILESIZE);
 				if (j == 0 || j == aHeight-1 || i == 0 || i == aWidth-1) {
-					val = 10;
+					val = SQUARE;
 				} else if (i <= 3) {
 					val = 0;
 				} else {
-					if (Math.random() < .1) {
-						val = 10;
+					double freq = .015;
+					double rand = Math.random();
+					if (rand < freq*4) {
+						val = SQUARE;
+					} else if (rand < freq*5) {
+						val = TRIANGLE_TL;
+						Polygon triangle = new Polygon();
+						triangle.addPoint(i*TILESIZE,j*TILESIZE);
+						triangle.addPoint((i+1)*TILESIZE, j*TILESIZE);
+						triangle.addPoint(i*TILESIZE, (j+1)*TILESIZE);
+						tiles[pos] = triangle;
+					} else if (rand < freq*6) {
+						val = TRIANGLE_TR;
+						Polygon triangle = new Polygon();
+						triangle.addPoint(i*TILESIZE,j*TILESIZE);
+						triangle.addPoint((i+1)*TILESIZE, j*TILESIZE);
+						triangle.addPoint((i+1)*TILESIZE, (j+1)*TILESIZE);
+						tiles[pos] = triangle;
+					} else if (rand < freq*7) {
+						val = TRIANGLE_BL;
+						Polygon triangle = new Polygon();
+						triangle.addPoint(i*TILESIZE,j*TILESIZE);
+						triangle.addPoint(i*TILESIZE, (j+1)*TILESIZE);
+						triangle.addPoint((i+1)*TILESIZE, (j+1)*TILESIZE);
+						tiles[pos] = triangle;
+					} else if (rand < freq*8) {
+						val = TRIANGLE_BR;
+						Polygon triangle = new Polygon();
+						triangle.addPoint((i+1)*TILESIZE,j*TILESIZE);
+						triangle.addPoint((i+1)*TILESIZE, (j+1)*TILESIZE);
+						triangle.addPoint(i*TILESIZE, (j+1)*TILESIZE);
+						tiles[pos] = triangle;
 					}
 				}
-				tiles[pos] = new Rectangle2D.Double(i*tileSize, j*tileSize, tileSize, tileSize);
 				map[pos]=val;
 			}
 		}
@@ -57,24 +97,27 @@ public class Map {
 		//Force mid-way left hand side starting position.
 		start = new Point(1,aHeight/2);
 		map[start.x+start.y*aWidth] = 1;
-		tiles[start.x+start.y*aWidth] = new Rectangle2D.Double(start.x*tileSize,start.y*tileSize,tileSize,tileSize);
+		tiles[start.x+start.y*aWidth] = new Rectangle2D.Double(start.x*TILESIZE,start.y*TILESIZE,TILESIZE,TILESIZE);
 		
 	}
 	
 	public void draw(Graphics g) {
 		Graphics2D g2d = (Graphics2D) g;
 		g.setColor(Color.BLACK);
-		int aWidth = WIDTH/tileSize;
-		int aHeight = HEIGHT/tileSize;
-		int pos;
+		int aWidth = WIDTH/TILESIZE;
+		int aHeight = HEIGHT/TILESIZE;
+		int pos, tileType;
 		for (int i=0; i<aWidth; i++) {
 			for (int j=0; j<aHeight; j++) {
 				pos = i+j*aWidth;
-				if (map[pos] == 0) {
-					g2d.draw(tiles[pos]);
-				} else if (map[pos] == 10) {
+				tileType = map[pos];
+				if (tileType == 0) {
+					//g2d.draw(tiles[pos]);
+				} else if (tileType == SQUARE) {
 					g2d.fill(tiles[pos]);
-				} 
+				} else if (tileType == TRIANGLE_TL || tileType == TRIANGLE_TR || tileType == TRIANGLE_BL || tileType == TRIANGLE_BR) {
+					g2d.fillPolygon((Polygon)tiles[pos]);
+				}
 			}
 		}
 	}
@@ -94,92 +137,68 @@ public class Map {
 	 * 
 	 * @return	All lines that will intersect with ball.
 	 * 
-	 * ASSUMPTION: delta <= 1.0, ball smaller than tile size, ball cannot completely pass a tile in one delta time step.
+	 * ASSUMPTIONS: delta <= 1.0, ball smaller than tile size, ball cannot completely pass a tile in one delta time step.
 	 */
 	public ArrayList<Line2D> getPossibleLines(Ball ball, double delta) {
 		ArrayList<Line2D> lines = new ArrayList<Line2D>();
 		
 		/* BROAD SEARCH 
-		 * Use AABB to find which tiles to check.
+		 * Checking all tiles within map around ball.
 		 */
 		
-		//Create AABB for resultant ball after movement represented by top-left and bottom-right points.
 		Ellipse2D c = ball.getCircle();
 		Point2D vel = ball.getVelocity();
 		Point2D newCenter = new Point2D.Double((c.getCenterX() + vel.getX() * delta),(c.getCenterY() + vel.getY() * delta));
 		int r = ball.getRadius();
 		
-		int centerTileX = (int)(newCenter.getX()/tileSize);
-		int centerTileY = (int)(newCenter.getY()/tileSize);
+		int centerTileX = (int)(newCenter.getX()/TILESIZE);
+		int centerTileY = (int)(newCenter.getY()/TILESIZE);
 		
-		int gridWidth = WIDTH/tileSize;
-		int gridHeight = HEIGHT/tileSize;
-		int tilePos, tileX, tileY;
-		for (int i=-1; i<=1; i++) {
-			for (int j=-1; j<=1; j++) {
+		int gridWidth = WIDTH/TILESIZE;
+		int gridHeight = HEIGHT/TILESIZE;
+		int tilePos, tileType, tileX, tileY;
+		for (int i=-15; i<=15; i++) {
+			for (int j=-15; j<=15; j++) {
 				tileX = centerTileX + i;
 				tileY = centerTileY + j;
 				
-				//Add check for redundant lines here if necessary
 				if(tileX >= 0 && tileY >= 0 && tileX < gridWidth && tileY < gridHeight) {
 					tilePos = tileX + tileY * gridWidth;
-					if (map[tilePos] >= IS_SOLID) {
+					tileType = map[tilePos];
+					if (tileType >= IS_SOLID) {
+						Line2D line;
+						double top = tileY*TILESIZE;
+						double bottom = (tileY+1)*TILESIZE;
+						double left = tileX*TILESIZE;
+						double right = (tileX+1)*TILESIZE;
 						
-						/*
-						 * NARROW SEARCH
-						 * Check sphere against all lines in non-empty tiles.
-						 */
-						if (map[tilePos] == 10) {
-							Line2D line;
-							Rectangle2D tile = (Rectangle2D) tiles[tilePos];
-							double top = tile.getY();
-							double bottom = tile.getMaxY();
-							double left = tile.getX();
-							double right = tile.getMaxX();
-							// If traveling in upwards direction and the highest point on
-							//  the AABB is above the tile's bottom line, check bottom line.
-							if(vel.getY() < 0 && newCenter.getY() - r <= bottom) {
-								line = new Line2D.Double(new Point2D.Double(left,bottom),new Point2D.Double(right,bottom));
-								if (checkLine(line,newCenter,r)) {
-									lines.add(line);
-								}
-							}
-							
-							// If traveling in downwards direction and the lowest point on
-							//  the AABB is below the tile's top line, check top line.
-							if(vel.getY() > 0 && newCenter.getY() + r >= top) {
-								line = new Line2D.Double(new Point2D.Double(left,top),new Point2D.Double(right,top));
-								if (checkLine(line,newCenter,r)) {
-									lines.add(line);
-								}
-							}
-							
-							// If traveling in the rightwards direction and the far right point on
-							//  the AABB is right of the tile's left-most line, check left line.
-							if (vel.getX() > 0 && newCenter.getX() + r >= left) {
-								line = new Line2D.Double(new Point2D.Double(left,top),new Point2D.Double(left,bottom));
-								if (checkLine(line,newCenter,r)) {
-									lines.add(line);
-								}
-							}
-							
-							// If traveling in the leftwards direction and the far right point on
-							//  the AABB is left of the tile's right-most line, check right line.
-							if (vel.getX() < 0 && newCenter.getX() - r <= right) {
-								line = new Line2D.Double(new Point2D.Double(right,top),new Point2D.Double(right,bottom));
-								if (checkLine(line,newCenter,r)) {
-									lines.add(line);
-								}
-							}
-							
+						if (tileType == TRIANGLE_TL) {
+							lines.add(new Line2D.Double(left,top,right,top));
+							lines.add(new Line2D.Double(right,top,left,bottom));
+							lines.add(new Line2D.Double(left,bottom,left,top));
+						} else if (tileType == TRIANGLE_TR) {
+							lines.add(new Line2D.Double(left,top,right,top));
+							lines.add(new Line2D.Double(right,top,right,bottom));
+							lines.add(new Line2D.Double(right,bottom,left,top));
+						} else if (tileType == TRIANGLE_BL) {
+							lines.add(new Line2D.Double(left,top,right,bottom));
+							lines.add(new Line2D.Double(right,bottom,left,bottom));
+							lines.add(new Line2D.Double(left,bottom,left,top));
+						} else if (tileType == TRIANGLE_BR) {
+							lines.add(new Line2D.Double(right,top,right,bottom));
+							lines.add(new Line2D.Double(right,bottom,left,bottom));
+							lines.add(new Line2D.Double(left,bottom,right,top));
+						} else {
+							lines.add(new Line2D.Double(left,top,right,top));
+							lines.add(new Line2D.Double(right,top,right,bottom));
+							lines.add(new Line2D.Double(right,bottom,left,bottom));
+							lines.add(new Line2D.Double(left,bottom,left,top));
 						}
 					}
 				}
 			}
 		}
-		
 		return lines;
-	
 	}
 	
 	/*

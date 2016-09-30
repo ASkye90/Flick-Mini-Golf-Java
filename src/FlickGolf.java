@@ -1,5 +1,6 @@
 import java.awt.*;
 import java.awt.event.*;
+import java.awt.geom.Ellipse2D;
 import java.awt.geom.Line2D;
 import java.awt.geom.Point2D;
 import java.awt.image.BufferStrategy;
@@ -7,6 +8,7 @@ import java.awt.image.BufferedImage;
 import java.util.ArrayList;
 
 import javax.swing.*;
+import javax.swing.plaf.basic.BasicInternalFrameTitlePane.SystemMenuBar;
 
 /*
  * FlickGolf is the main class for the game.
@@ -28,24 +30,35 @@ public class FlickGolf extends JPanel implements MouseListener,MouseMotionListen
 	
 	private Timer timer;
 	private ActionListener taskPerformer;
-	private static int TARGET_FPS = 30;
+	private static int TARGET_FPS = 300;
 	private static int TARGET_IN_MILLI = 1000 / TARGET_FPS;
+	
+	//Remove Later
+	private ArrayList<Line2D> temp;
+	private ArrayList<Ellipse2D> temp2;
+	private ArrayList<Point2D> temp3;
+	private Line2D impactLine;
+	private Point2D impact;
 	
 	public FlickGolf() {
 		map = new Map();
 		background = new BufferedImage(Map.WIDTH,Map.HEIGHT,BufferedImage.TYPE_INT_ARGB);
 		map.draw(background.getGraphics());
-		int tS = Map.tileSize;
-		int r = tS/2 - 1;
+		int tS = Map.TILESIZE;
+		int r = (int)(tS/4);
 		Point start = map.getStart();
 		ball = new Ball(new Point(start.x*tS + r,start.y*tS + r),r);
 		clicked = false;
 		playing = false;
 		addMouseListener(this);
 		addMouseMotionListener(this);
-		addKeyListener(this);
+		
+		//Remove Later
+		temp = new ArrayList<Line2D>();
+		temp2 = new ArrayList<Ellipse2D>();
+		temp3 = new ArrayList<Point2D>();
 				
-		ActionListener taskPerformer = new ActionListener() {
+		taskPerformer = new ActionListener() {
 			public void actionPerformed(ActionEvent evt) {
 				gameUpdate();
 				repaint();
@@ -76,57 +89,106 @@ public class FlickGolf extends JPanel implements MouseListener,MouseMotionListen
 	 */
 	public void physicsUpdate() {
 		double delta = 1.0;
-		while (delta >= 0.01) {
-			ArrayList<Line2D> lines = map.getPossibleLines(ball, delta);
+		int counter = 0;
+		while (delta > 0) {
 			Point2D vel = ball.getVelocity();
+			ArrayList<Line2D> lines = map.getPossibleLines(ball, delta);
 			if (lines.isEmpty()) {
 				ball.move(vel.getX()*delta, vel.getY()*delta);
 				delta = 0;
 			} else {
+				if(timer.isRunning()) {
+					temp.clear();
+					temp2.clear();
+					temp3.clear();
+				}
+				System.out.println("Possible Collision");
 				//Collision handling
 				double smallestDist = map.HEIGHT;
-				Point2D[] collision = new Point2D.Double[3];
+				ArrayList<Point2D> collisions = new ArrayList<Point2D>();
+				double fullDist = Math.sqrt(Math.pow(vel.getX(), 2) + Math.pow(vel.getY(), 2));
 				
+				//R
+				Line2D save = lines.get(0);
+				System.out.println("StartLoop");
 				for (Line2D line : lines) {
-					smallestDist = checkCircles(line,smallestDist,collision);
-					smallestDist = checkLines(line,smallestDist,collision);
+					double before = smallestDist;
+					smallestDist = checkLines(line,smallestDist,collisions);
+					smallestDist = checkCircles(line,smallestDist,collisions);
+					
+					//R
+					if (smallestDist < before) {
+						save = line;
+					}
 				}
+				System.out.println("EndLoop");
 						
 				if(smallestDist < map.HEIGHT) {
-					Point2D lineP1 = collision[0];
-					Point2D lineP2 = collision[1];
-					Point2D intersect = collision[2];
-					double dX = lineP2.getX()-lineP1.getX();
-					double dY = lineP2.getY()-lineP1.getY();
-					double collDelta = (intersect.getY()-ball.getCircle().getCenterY())/vel.getY();
-					if (collDelta < delta) {
-						double dotProd;
-						double[] projLine = new double[2];
-						double[] projLineNorm = new double[2];
-						dotProd = ((vel.getX()*dX)+(vel.getY()*dY))/((dX*dX)+(dY*dY));
-						projLine[0] = dotProd*dX;
-						projLine[1] = dotProd*dY;
+					
+					Point2D lineP1 = collisions.get(0);
+					Point2D lineP2 = collisions.get(1);
+					Point2D intersect = collisions.get(2);
+					double collDelta = smallestDist/fullDist;
+					if (collDelta > 0 && collDelta <= delta) {
+						System.out.println("Actual Collision");
+						Point2D newVel = getReflectVel(ball.getVelocity(),lineP1,lineP2);
+						//Remove later
+						//Point2D start = new Point2D.Double(ball.getCircle().getCenterX(),ball.getCircle().getCenterY());
 						
-						dotProd = ((vel.getX()*dY)+(vel.getY()*-dX))/((dY*dY)+(-dX*-dX));
-						projLineNorm[0] = dotProd*dY;
-						projLineNorm[1] = dotProd*-dX;
+						//ball.move(newVel.getX()*collDelta, newVel.getY()*collDelta);
+						//ball.move(vel.getX()*collDelta, vel.getY()*collDelta);
 						
-						Point2D newVel = new Point2D.Double(projLine[0]-projLineNorm[0],projLine[1]-projLineNorm[1]);
+						//Remove later
+						System.out.println(counter+ ":velocity-" +vel + ":newvelocity-" + newVel);
+						System.out.println(delta + " : " + collDelta);
+						System.out.println("Line: " + lineP1 + ", " + lineP2);
+						System.out.println("Center:" + ball.getCircle().getCenterX() + ", " + ball.getCircle().getCenterY());
+						System.out.println("Intersect: " + intersect + "\n");
+
+						ball.setCenter(intersect.getX(), intersect.getY());
 						
-						ball.move(vel.getX()*collDelta, vel.getY()*collDelta);
+						//Handle any simultaneous collisions here.
+						if (collisions.size() >= 6) {
+							for(int i=3; i<collisions.size(); i+=3) {
+								newVel = getReflectVel(newVel,collisions.get(i),collisions.get(i+1));
+								//newVel.setLocation(newVel.getX()+nextVel.getX(), newVel.getY()+nextVel.getY());
+							}
+						}
+						
 						ball.setVelocity(newVel);
+						
+						impactLine = save;
+						impact = intersect;
+						//timer.stop();
+						//System.out.println("Stop");
+						counter++;
+						
 						delta -= collDelta;
+						
+						
+						
 					} else {
+						//timer.stop();
+						System.out.println("Fake Collision: " + delta + ", " + collDelta);
+						System.out.println("SmallestDist: " + smallestDist);
+						System.out.println("Velocity-"+ vel);
+						System.out.println("Center:" + ball.getCircle().getCenterX() + ", " + ball.getCircle().getCenterY());
 						ball.move(vel.getX()*delta, vel.getY()*delta);
 						delta = 0;
 					}
 					
 				} else {
+					System.out.println("No Collision");
 					ball.move(vel.getX()*delta, vel.getY()*delta);
 					delta = 0;
 				}
 			}
+			//REMOVEEEE
+			repaint();
 		}
+		
+		//Point2D vel = ball.getVelocity();
+		//ball.setVelocity(vel.getX()*.95,vel.getY()*.95);
 	}
 	
 	/*
@@ -140,7 +202,7 @@ public class FlickGolf extends JPanel implements MouseListener,MouseMotionListen
 	 * 
 	 * @return	smallest distance between given and collisions with generated circles.
 	 */
-	private double checkCircles(Line2D line, double currSmallest, Point2D[] current) {
+	private double checkCircles(Line2D line, double currSmallest, ArrayList<Point2D> collisions) {
 		double smallest = currSmallest;
 		Point2D collPoint = new Point2D.Double(-1,-1);
 		Point2D vel = ball.getVelocity();
@@ -156,22 +218,25 @@ public class FlickGolf extends JPanel implements MouseListener,MouseMotionListen
 			} else {
 				center = line.getP2();
 			}
+			
+			//Calculate point(s) of intersection using quadratic formula and equations for both circle and line.
 			if (vel.getX() == 0) {
+				//Special case if line is vertical (cannot be represented by equation y=mx+b.
 				m = 0;
 				b2 = 0;
 				a = 1;
 				b = -2*center.getY();
-				c = Math.pow(vel.getX()-center.getX(),2)+Math.pow(center.getY(), 2)-r;
+				c = Math.pow(ball.getCircle().getCenterX()-center.getX(),2)+Math.pow(center.getY(), 2)-(r*r);
 			} else {
-				//Change to equation of line: y = mx + b2
 				m = vel.getY()/vel.getX();
 				b2 = start.getY()-m*start.getX();
 				a = m*m + 1;
 				b = 2*((m*b2)-(m*center.getY())-center.getX());
 				c = Math.pow(center.getY(),2)-(r*r)+Math.pow(center.getX(), 2)-(2*b2*center.getY())+(b2*b2);
-			}		
+			}
 			det = Math.pow(b, 2)- (4*a*c);
 			int loop = 1;
+			//Use determinant for quadratic formula to find number of points of intersection.
 			if (det < 0) {
 				loop = -2;
 			} else if (det == 0) {
@@ -181,20 +246,35 @@ public class FlickGolf extends JPanel implements MouseListener,MouseMotionListen
 			}
 			for (int j=-1; j<=loop; j+=2) {
 				if (vel.getX() == 0) {
-					collPoint.setLocation(vel.getX(), (-b+j*Math.sqrt(det))/(2*a));
+					//Special case if line was vertical.
+					collPoint.setLocation(ball.getCircle().getCenterX(), (-b+j*Math.sqrt(det))/(2*a));
 				} else {
 					double x = (-b+(j*Math.sqrt(det)))/(2*a);
-					collPoint.setLocation(x, x*m+b2);
+					collPoint.setLocation(x, (x*m)+b2);
 				}
-				dist = collPoint.distance(start);
-				if (dist < smallest) {
-					smallest = dist;
-					tangent = getTangent(center,collPoint);
-					current[0] = tangent.getP1();
-					current[1] = tangent.getP2();
-					current[2] = (Point2D)collPoint.clone();
+				//Make sure the ball is traveling towards the collision point.
+				Point2D dir = new Point2D.Double(collPoint.getX()-start.getX(),collPoint.getY()-start.getY());
+				if (Math.signum(vel.getX()) == Math.signum(dir.getX()) || Math.signum(vel.getY()) == Math.signum(dir.getY())) {
+					dist = collPoint.distance(start);
+					if (dist > 1E-5 && dist <= smallest) {
+						if (dist != smallest) {
+							collisions.clear();
+						}
+						smallest = dist;
+						tangent = getTangent(center,collPoint);
+						//Remove overlapping circles.
+						if(!collisions.contains(collPoint)) {
+							collisions.add(tangent.getP1());
+							collisions.add(tangent.getP2());
+							collisions.add((Point2D)collPoint.clone());
+							System.out.println("Circle! " + dist);
+							if(timer.isRunning()) temp.add(tangent);
+						}
+					}
 				}
+				if(timer.isRunning()) temp3.add(collPoint);
 			}
+			if(timer.isRunning()) temp2.add(new Ellipse2D.Double(center.getX()-r, center.getY()-r, r*2, r*2));
 		}
 		return smallest;
 	}
@@ -213,28 +293,30 @@ public class FlickGolf extends JPanel implements MouseListener,MouseMotionListen
 		double dY = pY - center.getY();
 		double dX = pX - center.getX();
 		if (dY == 0) {
-			return new Line2D.Double(pX-1,pY,pX+1,pY);
+			return new Line2D.Double(pX,pY-20,pX,pY+20);
 		} else if (dX == 0) {
-			return new Line2D.Double(pX,pY-1,pX,pY+1);
+			return new Line2D.Double(pX-20,pY,pX+20,pY);
 		} else {
-			double m = -dX/dY;
-			double b = pY-(m*pX);
-			return new Line2D.Double(pX+1,m*(pX+1)+b,pX-1,m*(pX-1)+b);
+			if(timer.isRunning()) {
+				temp3.add(point);
+				temp3.add(center);
+			}
+			return new Line2D.Double(pX-dY,pY+dX,pX+dY,pY-dX);
 		}
 	}
 	
 	/*
 	 * Helper method for physicsUpdate method.
-	 * Projects lines on either side of given at ball's radius distance away to check for intersections.
+	 * Projects lines on either side of given line at ball's radius distance away to check for intersections.
 	 * Updates current collision array accordingly if a shorter collision is found.
 	 * 
-	 * @param	line			Line segment to project circles around.
+	 * @param	line			Line segment to project lines from.
 	 * @param	currSmallest	Current smallest distance to a known collision point.
 	 * @param 	current			Array representation of the line and point for current collision.
 	 * 
 	 * @return	smallest distance between given and collisions with generated circles.
 	 */
-	private double checkLines(Line2D line, double currSmallest, Point2D[] current) {
+	private double checkLines(Line2D line, double currSmallest, ArrayList<Point2D> collisions) {
 		double smallest = currSmallest;
 		double dist, mag, dX, dY, dX_PA, dY_PA;
 		double r = ball.getRadius();
@@ -265,21 +347,54 @@ public class FlickGolf extends JPanel implements MouseListener,MouseMotionListen
 			if( a != 0 ) {
 				t = c / a;
 				u = b / a;
-				if (t>=0 && t<=1 && u>=0 && u<=1) {
+				if (u>0 && u<1 && t>=0 && t<=1) {
 					point.setLocation(start.getX()+(t*dX1), start.getY()+(t*dY1));
 					dist = point.distance(start);
-					if (dist < smallest) {
+					System.out.println("Line! " + dist);
+					if(timer.isRunning()) temp3.add(point);
+					if (dist > 1E-5 && dist <= smallest) {
+						if (dist != smallest) {
+							collisions.clear();
+						}
 						smallest = dist;
-						current[0] = newLine.getP1();
-						current[1] = newLine.getP2();
-						current[2] = (Point2D)point.clone();
+						collisions.add(newLine.getP1());
+						collisions.add(newLine.getP2());
+						collisions.add((Point2D)point.clone());
 					}
 				}
 			}
+			if(timer.isRunning()) temp.add(newLine);
 		}
 		return smallest;
 	}
 	
+	/*
+	 * Helper method for physicsUpdate method.
+	 * Calculates the reflection vector for velocity assumed to hit line P1 -> P2.
+	 * 
+	 * @param	vel		Given starting velocity.
+	 * @param	lineP1	First point on line.
+	 * @param	lineP2	Second point on line. 
+	 * 
+	 * @return	Reflection vector over line.
+	 */
+	private Point2D getReflectVel(Point2D vel, Point2D lineP1, Point2D lineP2) {
+		double dotProd;
+		double dX = lineP2.getX()-lineP1.getX();
+		double dY = lineP2.getY()-lineP1.getY();
+		double[] projLine = new double[2];
+		double[] projLineNorm = new double[2];
+		dotProd = ((vel.getX()*dX)+(vel.getY()*dY))/((dX*dX)+(dY*dY));
+		projLine[0] = dotProd*dX;
+		projLine[1] = dotProd*dY;
+		
+		dotProd = ((vel.getX()*dY)+(vel.getY()*-dX))/((dY*dY)+(-dX*-dX));
+		projLineNorm[0] = dotProd*dY;
+		projLineNorm[1] = dotProd*-dX;
+		
+		return new Point2D.Double(projLine[0]-projLineNorm[0],projLine[1]-projLineNorm[1]);
+		
+	}
 	
 	@Override
 	public void paintComponent(Graphics g) {
@@ -290,27 +405,59 @@ public class FlickGolf extends JPanel implements MouseListener,MouseMotionListen
 		if(clicked) {
 			g2d.drawLine(mouseClick.x, mouseClick.y, mouseCurrent.x, mouseCurrent.y);
 		}
+		
+		//Remove later
+		g2d.setColor(Color.cyan);
+		for (Ellipse2D e:temp2) {
+			g2d.draw(e);
+		}
+		g2d.setColor(Color.red);
+		for (Line2D l:temp) {
+			g2d.draw(l);
+		}
+		g2d.setColor(Color.green);
+		g2d.fillOval((int)ball.getCircle().getCenterX()-1,(int)ball.getCircle().getCenterY()-1,3,3);
+		
+		g2d.setColor(Color.orange);
+		for (Point2D point:temp3) {
+			g2d.drawOval((int)point.getX()-1, (int)point.getY()-1, 3, 3);
+		}
 	}
 	
 	@Override
 	public void keyPressed(KeyEvent key) {
-		if(key.getKeyChar() == KeyEvent.VK_ESCAPE) {
-			
+		int kc = key.getKeyCode();
+		if(kc == KeyEvent.VK_A) {
+			ball.setVelocity(-1,0);
+		} else if (kc == KeyEvent.VK_D) {
+			ball.setVelocity(1,0);
+		} else if (kc == KeyEvent.VK_W) {
+			ball.setVelocity(0,-1);
+		} else if (kc == KeyEvent.VK_S) {
+			ball.setVelocity(0,1);
+		} else if (kc == KeyEvent.VK_SPACE) {
+			timer.start();
 		}
 	}
 
 	@Override
 	public void mousePressed(MouseEvent e) {
-		clicked = true;
-		mouseClick = e.getPoint();
-		mouseCurrent = e.getPoint();
+		if (e.getButton() == MouseEvent.BUTTON3) {
+			ball.setCenter(e.getPoint().getX(), e.getPoint().getY());
+		} else {
+			clicked = true;
+			mouseClick = e.getPoint();
+			mouseCurrent = e.getPoint();
+		}
 	}
 
 
 	@Override
 	public void mouseReleased(MouseEvent e) {
-		clicked = false;
-		ball.setVelocity(new Point2D.Double((mouseCurrent.getX()-mouseClick.getX())/50,(mouseCurrent.getY()-mouseClick.getY())/50));
+		if(clicked) {
+			clicked = false;
+			ball.setVelocity(new Point2D.Double((mouseCurrent.getX()-mouseClick.getX())/5,(mouseCurrent.getY()-mouseClick.getY())/5));
+		}
 	}
 	
 	@Override
@@ -335,6 +482,7 @@ public class FlickGolf extends JPanel implements MouseListener,MouseMotionListen
 		frame.setVisible(true);
 		frame.setDefaultCloseOperation(WindowConstants.EXIT_ON_CLOSE);
 		
+		frame.addKeyListener(game);
 		game.playGame();
 	}
 
@@ -377,7 +525,7 @@ public class FlickGolf extends JPanel implements MouseListener,MouseMotionListen
 	@Override
 	public void mouseClicked(MouseEvent e) {
 		// TODO Auto-generated method stub
-		
+		System.out.println("Click " + 1E-5);
 	}
 
 }
