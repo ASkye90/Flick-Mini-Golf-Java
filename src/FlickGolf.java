@@ -227,7 +227,7 @@ public class FlickGolf extends JPanel implements MouseListener,MouseMotionListen
 				}
 				//Make sure the ball is traveling towards the collision point.
 				Point2D dir = new Point2D.Double(collPoint.getX()-start.getX(),collPoint.getY()-start.getY());
-				if (Math.signum(vel.getX()) == Math.signum(dir.getX()) || Math.signum(vel.getY()) == Math.signum(dir.getY())) {
+				if (Math.signum(vel.getX()) == Math.signum(dir.getX()) && Math.signum(vel.getY()) == Math.signum(dir.getY())) {
 					dist = collPoint.distance(start);
 					if (dist > 1E-5 && dist <= smallest) {
 						if (dist != smallest) {

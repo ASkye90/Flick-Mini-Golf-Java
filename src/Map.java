@@ -21,12 +21,11 @@ import javax.imageio.ImageIO;
  * Handles the collision detection for the game. 
  */
 public class Map {
-	public static int WIDTH = 957;
-	public static int HEIGHT = 627;
-	public static int TILESIZE = 33;
+	public static int WIDTH = 960;
+	public static int HEIGHT = 640;
+	public static int TILESIZE = 32;
 	
-	private static int TILESET_WIDTH = 136;
-	private static int TILESET_HEIGHT = 204;
+	private static int TILESET_WIDTH = 132;
 	private static String TILESET_PATH = "Assets/tileset.png";
 	private static String MAPPING_PATH = "Assets/mapping.csv";
 	
@@ -34,17 +33,18 @@ public class Map {
 	private ArrayList<Line2D>[] lines;
 	private BufferedImage tileset;
 	
-	private Shape[] tiles;
-	
 	//Starting position for ball.
 	private Point start;
 	
+	/*
+	 * Constructor for Map object.
+	 * Loads in tileset image and initiates empty arrays in preparation for loading a level.
+	 */
 	public Map() {
 		int aWidth = WIDTH/TILESIZE;
 		int aHeight = HEIGHT/TILESIZE;
 		int arraySize = aWidth*aHeight;
 		level = new int[arraySize];
-		tiles = new Shape[arraySize];
 		lines = new ArrayList[arraySize];
 
 		//Force mid-way left hand side starting position.
@@ -55,16 +55,19 @@ public class Map {
 		} catch (IOException e1) {
 			// TODO Auto-generated catch block
 			e1.printStackTrace();
-		}
-				
-		//level[start.x+start.y*aWidth] = 1;
-		tiles[start.x+start.y*aWidth] = new Rectangle2D.Double(start.x*TILESIZE,start.y*TILESIZE,TILESIZE,TILESIZE);
-		
+		}		
 	}
 	
+	/*
+	 * Loads a level into the Map from Asset folder based on level name.
+	 * 
+	 * @param	levelName	Name of level to load (CSV file)
+	 */
 	public void loadLevel(String levelName) {				
 		HashMap<Integer,double[]> mapping = new HashMap<Integer,double[]>();
 		BufferedReader CSVFile;
+		
+		//Load the mapping file used to associate set(s) of lines for each tile.
 		try {
 			CSVFile = new BufferedReader(new InputStreamReader(this.getClass().getClassLoader().getResourceAsStream(MAPPING_PATH)));
 			String dataRow = CSVFile.readLine();
@@ -84,6 +87,9 @@ public class Map {
 			System.out.println("Failed to load mapping");
 			e.printStackTrace();
 		}
+		
+		//Load the level into a singular array for drawing
+		//Create a set of lines for each tile in the level based on the mapping. 
 		try {
 			CSVFile = new BufferedReader(new InputStreamReader(this.getClass().getClassLoader().getResourceAsStream(levelName)));
 			String[] mapData = CSVFile.readLine().split(",");
@@ -98,7 +104,7 @@ public class Map {
 				y = (int) (Math.floor(i / lvlCols))*TILESIZE;
 				newLines = new ArrayList<Line2D>();
 				for (int j=0; j<mappingItem.length; j+=4) {
-					newLines.add(new Line2D.Double(x+mappingItem[j],y+mappingItem[j+1],x+mappingItem[j+2],y+mappingItem[j+3]));					
+					newLines.add(new Line2D.Double(x+mappingItem[j],y+mappingItem[j+1],x+mappingItem[j+2],y+mappingItem[j+3]));
 				}
 				lines[i] = newLines;
 				level[i] = tile;
@@ -109,7 +115,9 @@ public class Map {
 		}
 	}
 	
-	
+	/*
+	 * Draw the map.
+	 */
 	public void draw(Graphics g) {
 		int drawX, drawY, tileX, tileY;
 		int tileCols = TILESET_WIDTH / (TILESIZE+1);
